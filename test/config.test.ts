@@ -23,6 +23,16 @@ test('accepts a valid interval configuration', () => {
   assert.equal(snapshot.contactsById.get('joao')?.name, 'João');
 });
 
+test('accepts monthly schedules and rejects invalid days of the month', () => {
+  const monthly = validConfig();
+  (monthly.campaigns as Array<Record<string, unknown>>)[0].schedule = { daysOfMonth: [9, 20], times: ['09:00'] };
+  assert.deepEqual(validateConfig(monthly).config.campaigns[0].schedule, { daysOfMonth: [9, 20], times: ['09:00'] });
+
+  const invalidDay = validConfig();
+  (invalidDay.campaigns as Array<Record<string, unknown>>)[0].schedule = { daysOfMonth: [0], times: ['09:00'] };
+  assert.throws(() => validateConfig(invalidDay), /integer from 1 to 31/);
+});
+
 test('rejects invalid JSON in the configuration file', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'whatsapp-bot-test-'));
   const filePath = join(directory, 'config.json');

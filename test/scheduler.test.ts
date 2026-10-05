@@ -47,6 +47,14 @@ test('supports 30-minute, fixed-time, and overnight schedules', () => {
   assert.equal(latestOccurrence({ start: '22:00', end: '02:00', intervalMinutes: 60 }, atBahia(12), 'America/Bahia'), undefined);
 });
 
+test('runs monthly schedules only on configured calendar days', () => {
+  const schedule = { daysOfMonth: [9, 20], times: ['09:00', '18:00'] };
+  const ninthAtNoon = new Date('2026-10-09T12:00:00-03:00');
+  const tenthAtNoon = new Date('2026-10-10T12:00:00-03:00');
+  assert.deepEqual(latestOccurrence(schedule, ninthAtNoon, 'America/Bahia'), { date: '2026-10-09', time: '09:00' });
+  assert.equal(latestOccurrence(schedule, tenthAtNoon, 'America/Bahia'), undefined);
+});
+
 test('does not execute disabled campaigns and de-duplicates successful sends', async () => {
   const client = new FakeClient();
   const scheduler = new CampaignScheduler(() => snapshot(), client);

@@ -1,4 +1,4 @@
-import type { Campaign, ConfigSnapshot, IntervalSchedule, Schedule } from './config.js';
+import type { Campaign, ConfigSnapshot, IntervalSchedule, MonthlyTimesSchedule, Schedule } from './config.js';
 import type { WhatsAppClient } from './whatsapp.js';
 
 interface LocalDateTime {
@@ -51,11 +51,16 @@ function isIntervalSchedule(schedule: Schedule): schedule is IntervalSchedule {
   return 'intervalMinutes' in schedule;
 }
 
+function isMonthlyTimesSchedule(schedule: Schedule): schedule is MonthlyTimesSchedule {
+  return 'daysOfMonth' in schedule;
+}
+
 export function latestOccurrence(schedule: Schedule, now: Date, timezone: string): Occurrence | undefined {
   const local = localDateTime(now, timezone);
   const today = dateString(local.year, local.month, local.day);
 
   if (!isIntervalSchedule(schedule)) {
+    if (isMonthlyTimesSchedule(schedule) && !schedule.daysOfMonth.includes(local.day)) return undefined;
     const due = [...schedule.times].sort().filter((time) => minutesFromTime(time) <= local.minutes).at(-1);
     return due ? { date: today, time: due } : undefined;
   }

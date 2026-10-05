@@ -22,6 +22,14 @@
       "recipients": ["joao", "pedro"],
       "message": "☀️ Bom dia! Tenha um ótimo dia!",
       "schedule": { "times": ["08:00"] }
+    },
+    {
+      "id": "monthly-bill-reminder",
+      "name": "Pagar boleto",
+      "enabled": false,
+      "recipients": ["joao"],
+      "message": "📄 Lembrete: pagar o boleto.",
+      "schedule": { "daysOfMonth": [9], "times": ["09:00"] }
     }
   ]
 }

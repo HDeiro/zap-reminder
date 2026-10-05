@@ -18,7 +18,11 @@ export interface TimesSchedule {
   times: string[];
 }
 
-export type Schedule = IntervalSchedule | TimesSchedule;
+export interface MonthlyTimesSchedule extends TimesSchedule {
+  daysOfMonth: number[];
+}
+
+export type Schedule = IntervalSchedule | TimesSchedule | MonthlyTimesSchedule;
 
 export interface Campaign {
   id: string;
@@ -72,9 +76,13 @@ function validateSchedule(value: unknown, campaignId: string): Schedule {
   if (!isRecord(value)) fail(`campaign "${campaignId}" schedule must be an object.`);
 
   const hasTimes = Object.hasOwn(value, 'times');
+  const hasDaysOfMonth = Object.hasOwn(value, 'daysOfMonth');
   const hasIntervalFields = Object.hasOwn(value, 'start') || Object.hasOwn(value, 'end') || Object.hasOwn(value, 'intervalMinutes');
-  if (hasTimes === hasIntervalFields) {
-    fail(`campaign "${campaignId}" must have exactly one schedule format (interval or times).`);
+  if (hasIntervalFields && (hasTimes || hasDaysOfMonth)) {
+    fail(`campaign "${campaignId}" must have exactly one schedule format (interval, times, or daysOfMonth with times).`);
+  }
+  if (!hasIntervalFields && !hasTimes) {
+    fail(`campaign "${campaignId}" must have a schedule (interval, times, or daysOfMonth with times).`);
   }
 
   if (hasTimes) {
@@ -87,7 +95,18 @@ function validateSchedule(value: unknown, campaignId: string): Schedule {
       return parsed;
     });
     if (new Set(times).size !== times.length) fail(`campaign "${campaignId}" schedule.times contains duplicates.`);
-    return { times };
+    if (!hasDaysOfMonth) return { times };
+    if (!Array.isArray(value.daysOfMonth) || value.daysOfMonth.length === 0) {
+      fail(`campaign "${campaignId}" schedule.daysOfMonth must be a non-empty array.`);
+    }
+    const daysOfMonth = value.daysOfMonth.map((day, index) => {
+      if (typeof day !== 'number' || !Number.isInteger(day) || day < 1 || day > 31) {
+        fail(`campaign "${campaignId}" schedule.daysOfMonth[${index}] must be an integer from 1 to 31.`);
+      }
+      return day;
+    });
+    if (new Set(daysOfMonth).size !== daysOfMonth.length) fail(`campaign "${campaignId}" schedule.daysOfMonth contains duplicates.`);
+    return { times, daysOfMonth };
   }
 
   const start = requireString(value.start, `campaign "${campaignId}" schedule.start`);

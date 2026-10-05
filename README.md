@@ -120,6 +120,14 @@ ou:
 { "times": ["08:00", "12:00", "18:00"] }
 ```
 
+Para executar apenas em dias específicos de cada mês, combine `daysOfMonth` com `times`:
+
+```json
+{ "daysOfMonth": [9], "times": ["09:00"] }
+```
+
+Esse exemplo envia às 09:00 no dia 9 de cada mês. Você pode informar vários dias e horários, como `{ "daysOfMonth": [5, 9, 20], "times": ["09:00", "18:00"] }`. O dia 31 é simplesmente ignorado em meses que não o possuem.
+
 Janelas por intervalo podem atravessar meia-noite, por exemplo `{ "start": "22:00", "end": "02:00", "intervalMinutes": 60 }`.
 
 O scheduler verifica imediatamente após conectar e depois a cada `checkIntervalSeconds`. Não há cron. A ocorrência mais recente aplicável é enviada uma vez para cada contato durante a execução atual; após reiniciar, não são reenviadas todas as ocorrências perdidas. Se um envio falhar, somente aquele contato é tentado novamente no próximo ciclo. Isso oferece retentativa, mas em uma falha de rede ambígua pode ocorrer entrega duplicada.
