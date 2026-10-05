@@ -33,13 +33,19 @@ npm run build
 npm start
 ```
 
+Para instalar dependências, gerar o build e iniciar o bot em sequência:
+
+```bash
+npm run bootstrap
+```
+
 Testes:
 
 ```bash
 npm test
 ```
 
-Na primeira inicialização, um QR code será mostrado no terminal. No WhatsApp do celular, abra **Dispositivos conectados** e escaneie-o. Os arquivos da sessão são gravados em `auth/`; mantenha essa pasta no mesmo diretório para que reinícios futuros conectem automaticamente.
+Na primeira inicialização, um QR code será mostrado no terminal. No WhatsApp do celular, abra **Dispositivos conectados** e escaneie-o. Os arquivos da sessão são gravados em `auth/`; mantenha essa pasta no mesmo diretório para que reinícios futuros conectem automaticamente. O QR é gerado pelo próprio bot a partir do evento de conexão do Baileys, compatível com Baileys 7.
 
 ## Configuração
 

@@ -3,6 +3,7 @@ import makeWASocket, {
   useMultiFileAuthState,
   type WASocket
 } from '@whiskeysockets/baileys';
+import qrcode from 'qrcode-terminal';
 
 export interface WhatsAppClient {
   connect(): Promise<void>;
@@ -63,12 +64,16 @@ export class BaileysWhatsAppClient implements WhatsAppClient {
     try {
       const { state, saveCreds } = await useMultiFileAuthState(this.authDirectory);
       if (this.stopping) return;
-      const socket = makeWASocket({ auth: state, printQRInTerminal: true });
+      const socket = makeWASocket({ auth: state });
       this.socket = socket;
       socket.ev.on('creds.update', saveCreds);
       socket.ev.on('connection.update', (update) => {
         if (this.socket !== socket) return;
         const { connection, lastDisconnect } = update;
+        if (update.qr) {
+          console.info('[INFO] Scan the QR code below with WhatsApp > Linked devices');
+          qrcode.generate(update.qr, { small: true });
+        }
         if (connection === 'open') {
           this.connected = true;
           console.info('[INFO] WhatsApp connected');
