@@ -1,4 +1,5 @@
 import type { Campaign, ConfigSnapshot, IntervalSchedule, MonthlyTimesSchedule, Schedule } from './config.js';
+import type { DeliveryState } from './state.js';
 import type { WhatsAppClient } from './whatsapp.js';
 
 interface LocalDateTime {
@@ -90,14 +91,14 @@ export function latestOccurrence(schedule: Schedule, now: Date, timezone: string
 }
 
 export class CampaignScheduler {
-  private readonly completed = new Set<string>();
   private timer?: NodeJS.Timeout;
   private running = false;
   private stopping = false;
 
   constructor(
     private readonly getSnapshot: () => ConfigSnapshot,
-    private readonly client: WhatsAppClient
+    private readonly client: WhatsAppClient,
+    private readonly deliveryState: DeliveryState
   ) {}
 
   async checkCampaigns(now = new Date()): Promise<void> {
@@ -121,14 +122,19 @@ export class CampaignScheduler {
   private async deliverCampaign(campaign: Campaign, occurrence: Occurrence, snapshot: ConfigSnapshot): Promise<void> {
     for (const recipientId of campaign.recipients) {
       if (this.stopping) return;
-      const key = `${campaign.id}:${recipientId}:${occurrence.date}T${occurrence.time}[${snapshot.config.timezone}]`;
-      if (this.completed.has(key)) continue;
+      const occurrenceId = `${occurrence.date}T${occurrence.time}[${snapshot.config.timezone}]`;
+      if (this.deliveryState.wasDelivered(campaign.id, recipientId, occurrenceId)) continue;
       const contact = snapshot.contactsById.get(recipientId);
       if (!contact) continue;
       try {
         console.info(`[INFO] Sending message to ${contact.name}`);
         await this.client.sendMessage(contact.phone, campaign.message);
-        this.completed.add(key);
+        try {
+          await this.deliveryState.recordDelivered(campaign.id, recipientId, occurrenceId);
+        } catch (error) {
+          console.error(`[ERROR] Message was sent to ${contact.name}, but its delivery state could not be saved: ${error instanceof Error ? error.message : String(error)}`);
+          continue;
+        }
         console.info(`[INFO] Message sent to ${contact.name}`);
       } catch (error) {
         console.error(`[ERROR] Failed to send message to ${contact.name}: ${error instanceof Error ? error.message : String(error)}`);

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { validateConfig, type ConfigSnapshot } from '../src/config.js';
 import { CampaignScheduler, latestOccurrence } from '../src/scheduler.js';
+import type { DeliveryState } from '../src/state.js';
 import type { WhatsAppClient } from '../src/whatsapp.js';
 
 function atBahia(hour: number, minute = 0): Date {
@@ -32,6 +33,18 @@ class FakeClient implements WhatsAppClient {
   }
 }
 
+class MemoryDeliveryState implements DeliveryState {
+  private readonly delivered = new Map<string, string>();
+
+  wasDelivered(campaignId: string, recipientId: string, occurrenceId: string): boolean {
+    return this.delivered.get(`${campaignId}:${recipientId}`) === occurrenceId;
+  }
+
+  async recordDelivered(campaignId: string, recipientId: string, occurrenceId: string): Promise<void> {
+    this.delivered.set(`${campaignId}:${recipientId}`, occurrenceId);
+  }
+}
+
 test('finds interval occurrences at boundaries and never after a normal window', () => {
   const schedule = { start: '08:00', end: '22:00', intervalMinutes: 60 };
   assert.deepEqual(latestOccurrence(schedule, atBahia(8), 'America/Bahia'), { date: '2026-10-05', time: '08:00' });
@@ -57,12 +70,12 @@ test('runs monthly schedules only on configured calendar days', () => {
 
 test('does not execute disabled campaigns and de-duplicates successful sends', async () => {
   const client = new FakeClient();
-  const scheduler = new CampaignScheduler(() => snapshot(), client);
+  const scheduler = new CampaignScheduler(() => snapshot(), client, new MemoryDeliveryState());
   await scheduler.checkCampaigns(atBahia(8, 1));
   await scheduler.checkCampaigns(atBahia(8, 30));
   assert.equal(client.sends.length, 2);
 
-  const disabled = new CampaignScheduler(() => snapshot({ campaigns: [{ id: 'water', name: 'Water', enabled: false, recipients: ['joao'], message: 'Drink', schedule: { times: ['08:00'] } }] }), client);
+  const disabled = new CampaignScheduler(() => snapshot({ campaigns: [{ id: 'water', name: 'Water', enabled: false, recipients: ['joao'], message: 'Drink', schedule: { times: ['08:00'] } }] }), client, new MemoryDeliveryState());
   await disabled.checkCampaigns(atBahia(8));
   assert.equal(client.sends.length, 2);
 });
@@ -70,7 +83,7 @@ test('does not execute disabled campaigns and de-duplicates successful sends', a
 test('continues other recipients and retries a failed recipient', async () => {
   const client = new FakeClient();
   client.failPhone = '5571888888888';
-  const scheduler = new CampaignScheduler(() => snapshot(), client);
+  const scheduler = new CampaignScheduler(() => snapshot(), client, new MemoryDeliveryState());
   await scheduler.checkCampaigns(atBahia(8, 1));
   assert.equal(client.sends.length, 1);
   client.failPhone = undefined;

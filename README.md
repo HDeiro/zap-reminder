@@ -130,7 +130,7 @@ Esse exemplo envia às 09:00 no dia 9 de cada mês. Você pode informar vários 
 
 Janelas por intervalo podem atravessar meia-noite, por exemplo `{ "start": "22:00", "end": "02:00", "intervalMinutes": 60 }`.
 
-O scheduler verifica imediatamente após conectar e depois a cada `checkIntervalSeconds`. Não há cron. A ocorrência mais recente aplicável é enviada uma vez para cada contato durante a execução atual; após reiniciar, não são reenviadas todas as ocorrências perdidas. Se um envio falhar, somente aquele contato é tentado novamente no próximo ciclo. Isso oferece retentativa, mas em uma falha de rede ambígua pode ocorrer entrega duplicada.
+O scheduler verifica imediatamente após conectar e depois a cada `checkIntervalSeconds`. Não há cron. Após cada envio bem-sucedido, o bot salva em `state.json` somente a última ocorrência de cada campanha/destinatário. Por isso, parar às 14:13 e reiniciar não reenvia a ocorrência das 14:00; às 15:00, o registro é substituído pela nova ocorrência. Envios que falham não são salvos e são tentados novamente no próximo ciclo. Não há recuperação de ocorrências de dias anteriores: ao voltar no dia seguinte, o bot considera apenas a ocorrência atual mais recente.
 
 ## systemd no Raspberry Pi
 
