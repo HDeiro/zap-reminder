@@ -1,4 +1,4 @@
-import type { Campaign, ConfigSnapshot, IntervalSchedule, MonthlyTimesSchedule, Schedule } from './config.js';
+import type { Campaign, ConfigSnapshot, IntervalSchedule, MonthlyTimesSchedule, Schedule, ShiftSchedule } from './config.js';
 import type { DeliveryState } from './state.js';
 import type { WhatsAppClient } from './whatsapp.js';
 
@@ -56,11 +56,37 @@ function isMonthlyTimesSchedule(schedule: Schedule): schedule is MonthlyTimesSch
   return 'daysOfMonth' in schedule;
 }
 
+function isShiftSchedule(schedule: Schedule): schedule is ShiftSchedule {
+  return 'messagesPerShift' in schedule;
+}
+
+function shiftOccurrences(schedule: ShiftSchedule): string[] {
+  const start = minutesFromTime(schedule.start);
+  const end = minutesFromTime(schedule.end);
+  const shifts: Array<[number, number]> = [[0, 720], [720, 1_080], [1_080, 1_440]];
+  const occurrences: string[] = [];
+
+  for (const [shiftStart, shiftEnd] of shifts) {
+    const windowStart = Math.max(start, shiftStart);
+    const windowEnd = Math.min(end, shiftEnd);
+    const duration = windowEnd - windowStart;
+    if (duration <= 0) continue;
+    for (let index = 0; index < schedule.messagesPerShift; index += 1) {
+      occurrences.push(timeFromMinutes(windowStart + Math.floor(index * duration / schedule.messagesPerShift)));
+    }
+  }
+  return occurrences;
+}
+
 export function latestOccurrence(schedule: Schedule, now: Date, timezone: string): Occurrence | undefined {
   const local = localDateTime(now, timezone);
   const today = dateString(local.year, local.month, local.day);
 
   if (!isIntervalSchedule(schedule)) {
+    if (isShiftSchedule(schedule)) {
+      const due = shiftOccurrences(schedule).filter((time) => minutesFromTime(time) <= local.minutes).at(-1);
+      return due ? { date: today, time: due } : undefined;
+    }
     if (isMonthlyTimesSchedule(schedule) && !schedule.daysOfMonth.includes(local.day)) return undefined;
     const due = [...schedule.times].sort().filter((time) => minutesFromTime(time) <= local.minutes).at(-1);
     return due ? { date: today, time: due } : undefined;

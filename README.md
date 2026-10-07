@@ -120,6 +120,14 @@ ou:
 { "times": ["08:00", "12:00", "18:00"] }
 ```
 
+ou, para enviar uma quantidade fixa em cada turno do dia dentro de uma janela:
+
+```json
+{ "start": "08:00", "end": "22:00", "messagesPerShift": 2 }
+```
+
+`messagesPerShift` envia exatamente X mensagens em cada turno que cruze a janela: manhã (00:00–12:00), tarde (12:00–18:00) e noite (18:00–24:00). Os horários são distribuídos uniformemente, começando no início de cada trecho. Assim, o exemplo acima envia às 08:00 e 10:00; 12:00 e 15:00; 18:00 e 20:00. Esse formato não pode atravessar meia-noite e X não pode ser maior que a quantidade de minutos no menor turno incluído.
+
 Para executar apenas em dias específicos de cada mês, combine `daysOfMonth` com `times`:
 
 ```json

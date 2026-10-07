@@ -68,6 +68,15 @@ test('runs monthly schedules only on configured calendar days', () => {
   assert.equal(latestOccurrence(schedule, tenthAtNoon, 'America/Bahia'), undefined);
 });
 
+test('distributes the configured number of messages in each applicable shift', () => {
+  const schedule = { start: '08:00', end: '22:00', messagesPerShift: 2 };
+  assert.deepEqual(latestOccurrence(schedule, atBahia(10, 1), 'America/Bahia'), { date: '2026-10-05', time: '10:00' });
+  assert.deepEqual(latestOccurrence(schedule, atBahia(15, 1), 'America/Bahia'), { date: '2026-10-05', time: '15:00' });
+  assert.deepEqual(latestOccurrence(schedule, atBahia(20, 1), 'America/Bahia'), { date: '2026-10-05', time: '20:00' });
+  assert.equal(latestOccurrence(schedule, atBahia(7, 59), 'America/Bahia'), undefined);
+  assert.deepEqual(latestOccurrence(schedule, atBahia(22), 'America/Bahia'), { date: '2026-10-05', time: '20:00' });
+});
+
 test('does not execute disabled campaigns and de-duplicates successful sends', async () => {
   const client = new FakeClient();
   const scheduler = new CampaignScheduler(() => snapshot(), client, new MemoryDeliveryState());

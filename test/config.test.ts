@@ -33,6 +33,24 @@ test('accepts monthly schedules and rejects invalid days of the month', () => {
   assert.throws(() => validateConfig(invalidDay), /integer from 1 to 31/);
 });
 
+test('accepts shift schedules and rejects invalid shift values', () => {
+  const shifts = validConfig();
+  (shifts.campaigns as Array<Record<string, unknown>>)[0].schedule = { start: '08:00', end: '22:00', messagesPerShift: 2 };
+  assert.deepEqual(validateConfig(shifts).config.campaigns[0].schedule, { start: '08:00', end: '22:00', messagesPerShift: 2 });
+
+  const invalidAmount = validConfig();
+  (invalidAmount.campaigns as Array<Record<string, unknown>>)[0].schedule = { start: '08:00', end: '22:00', messagesPerShift: 0 };
+  assert.throws(() => validateConfig(invalidAmount), /messagesPerShift must be a positive integer/);
+
+  const overnight = validConfig();
+  (overnight.campaigns as Array<Record<string, unknown>>)[0].schedule = { start: '22:00', end: '02:00', messagesPerShift: 1 };
+  assert.throws(() => validateConfig(overnight), /cannot cross midnight/);
+
+  const tooMany = validConfig();
+  (tooMany.campaigns as Array<Record<string, unknown>>)[0].schedule = { start: '08:00', end: '08:01', messagesPerShift: 2 };
+  assert.throws(() => validateConfig(tooMany), /cannot exceed the number of minutes/);
+});
+
 test('rejects invalid JSON in the configuration file', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'whatsapp-bot-test-'));
   const filePath = join(directory, 'config.json');

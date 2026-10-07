@@ -22,7 +22,17 @@ export interface MonthlyTimesSchedule extends TimesSchedule {
   daysOfMonth: number[];
 }
 
-export type Schedule = IntervalSchedule | TimesSchedule | MonthlyTimesSchedule;
+/**
+ * Sends the same number of messages in each applicable part of the day:
+ * morning (00:00-12:00), afternoon (12:00-18:00), and night (18:00-24:00).
+ */
+export interface ShiftSchedule {
+  start: string;
+  end: string;
+  messagesPerShift: number;
+}
+
+export type Schedule = IntervalSchedule | TimesSchedule | MonthlyTimesSchedule | ShiftSchedule;
 
 export interface Campaign {
   id: string;
@@ -72,17 +82,23 @@ function validateTimezone(timezone: string): void {
   }
 }
 
+function timeToMinutes(time: string): number {
+  const [hour, minute] = time.split(':').map(Number);
+  return hour * 60 + minute;
+}
+
 function validateSchedule(value: unknown, campaignId: string): Schedule {
   if (!isRecord(value)) fail(`campaign "${campaignId}" schedule must be an object.`);
 
   const hasTimes = Object.hasOwn(value, 'times');
   const hasDaysOfMonth = Object.hasOwn(value, 'daysOfMonth');
+  const hasShiftFields = Object.hasOwn(value, 'messagesPerShift');
   const hasIntervalFields = Object.hasOwn(value, 'start') || Object.hasOwn(value, 'end') || Object.hasOwn(value, 'intervalMinutes');
-  if (hasIntervalFields && (hasTimes || hasDaysOfMonth)) {
-    fail(`campaign "${campaignId}" must have exactly one schedule format (interval, times, or daysOfMonth with times).`);
+  if ((hasIntervalFields && (hasTimes || hasDaysOfMonth)) || (hasShiftFields && (hasTimes || hasDaysOfMonth || Object.hasOwn(value, 'intervalMinutes')))) {
+    fail(`campaign "${campaignId}" must have exactly one schedule format (interval, times, daysOfMonth with times, or shifts).`);
   }
-  if (!hasIntervalFields && !hasTimes) {
-    fail(`campaign "${campaignId}" must have a schedule (interval, times, or daysOfMonth with times).`);
+  if (!hasIntervalFields && !hasTimes && !hasShiftFields) {
+    fail(`campaign "${campaignId}" must have a schedule (interval, times, daysOfMonth with times, or shifts).`);
   }
 
   if (hasTimes) {
@@ -112,6 +128,21 @@ function validateSchedule(value: unknown, campaignId: string): Schedule {
   const start = requireString(value.start, `campaign "${campaignId}" schedule.start`);
   const end = requireString(value.end, `campaign "${campaignId}" schedule.end`);
   if (!isValidTime(start) || !isValidTime(end)) fail(`campaign "${campaignId}" start and end must use HH:mm.`);
+  if (hasShiftFields) {
+    if (typeof value.messagesPerShift !== 'number' || !Number.isInteger(value.messagesPerShift) || value.messagesPerShift <= 0) {
+      fail(`campaign "${campaignId}" messagesPerShift must be a positive integer.`);
+    }
+    if (start >= end) fail(`campaign "${campaignId}" shift schedules must have start before end and cannot cross midnight.`);
+    const startMinutes = timeToMinutes(start);
+    const endMinutes = timeToMinutes(end);
+    for (const [shiftStart, shiftEnd] of [[0, 720], [720, 1_080], [1_080, 1_440]]) {
+      const duration = Math.min(endMinutes, shiftEnd) - Math.max(startMinutes, shiftStart);
+      if (duration > 0 && value.messagesPerShift > duration) {
+        fail(`campaign "${campaignId}" messagesPerShift cannot exceed the number of minutes in an applicable shift.`);
+      }
+    }
+    return { start, end, messagesPerShift: value.messagesPerShift };
+  }
   if (typeof value.intervalMinutes !== 'number' || !Number.isInteger(value.intervalMinutes) || value.intervalMinutes <= 0) {
     fail(`campaign "${campaignId}" intervalMinutes must be a positive integer.`);
   }

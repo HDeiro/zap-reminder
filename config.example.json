@@ -24,6 +24,14 @@
       "schedule": { "times": ["08:00"] }
     },
     {
+      "id": "shift-reminder",
+      "name": "Lembrete por turno",
+      "enabled": false,
+      "recipients": ["maria"],
+      "message": "🧘 Faça uma pausa rápida.",
+      "schedule": { "start": "08:00", "end": "22:00", "messagesPerShift": 2 }
+    },
+    {
       "id": "monthly-bill-reminder",
       "name": "Pagar boleto",
       "enabled": false,
